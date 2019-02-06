@@ -22,6 +22,8 @@ import Login from './components/Login'
 import Feed from './components/Feed'
 import UploadModal from './components/UploadModal'
 
+import SampleData from './sample_data'
+
 const pacificoFont = {
   fontFamily: "'Pacifico', cursive"
 }
@@ -48,7 +50,6 @@ const convertImageToBSONBinaryObject = file => {
 class App extends Component {
   constructor(props) {
     super(props)
-
     this.appId = 'picstream-yroic'
 
     this.state = {
@@ -60,11 +61,14 @@ class App extends Component {
 
   componentDidMount = async () => {
     this.client = Stitch.initializeAppClient(this.appId)
+    
     this.mongodb = this.client.getServiceClient(
       RemoteMongoClient.factory,
-      'mongodb-atlas'
-    )
+      'mongodb-atlas')
+
+
     this.aws = this.client.getServiceClient(AwsServiceClient.factory, 'aws')
+
 
     const isAuthed = this.client.auth.isLoggedIn
     if (isAuthed) {
@@ -80,13 +84,13 @@ class App extends Component {
     if (isAuthed) {
       return
     }
-
     const credential = new UserPasswordCredential(email, password)
     const user = await this.client.auth.loginWithCredential(credential)
+
     const entries = await this.getEntries()
     this.setState({
       isAuthed: true,
-      email: user.profile.email,
+      email,
       entries
     })
   }
@@ -97,11 +101,13 @@ class App extends Component {
   }
 
   getEntries = async () => {
-    return this.mongodb
+    return new Promise(resolve => {
+      return this.mongodb
       .db('data')
       .collection('stream')
       .find({}, { sort: { ts: -1 } })
       .asArray()
+    })
   }
 
   handleFileUpload = async (file, caption) => {
@@ -124,6 +130,7 @@ class App extends Component {
     const bucket = 'picstream-ajm'
     const url = `https://${bucket}.s3.amazonaws.com/${encodeURIComponent(key)}`
 
+    // The following BSON Binary Object can be used a the body of the request.
     const bsonFile = await convertImageToBSONBinaryObject(file)
 
     // AWS S3 Request
